@@ -19,7 +19,7 @@ jobs:
       # Runs the action via Docker: GitHub builds the Dockerfile and runs the container (no bypass).
       - name: Check path changes
         id: check_path
-        uses: .
+        uses: ./
         with:
           path: main.py
 
