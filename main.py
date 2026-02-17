@@ -17,29 +17,22 @@ def get_input(name: str, default: str | None = None, *, required: bool = False) 
         return default or ""
     return val
 
+def _ensure_commit_exists(workspace: str, sha: str) -> None:
+    """Fetch a specific commit SHA if it doesn't exist locally."""
+    # Vérifie si le commit existe
+    r = subprocess.run(["git", "cat-file", "-t", sha], cwd=workspace,
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        # Commit absent → fetch explicite
+        subprocess.run(
+            ["git", "fetch", "--no-tags", "--depth=1", "origin", sha],
+            cwd=workspace,
+            check=True
+        )
+
 
 # All-zero object hash means no previous ref (e.g. first push, force-push)
 INVALID_BEFORE = "0" * 40
-
-
-def _is_relative_ref(ref: str) -> bool:
-    """True if ref is relative (HEAD~N, HEAD^, etc.), not a full SHA."""
-    if not ref or len(ref) > 40:
-        return bool(ref and ref.upper().startswith("HEAD"))
-    # 40-char hex is a full SHA
-    return not (len(ref) == 40 and all(c in "0123456789abcdef" for c in ref.lower()))
-
-
-def _ensure_depth_for_ref(workspace: str, before: str, after: str) -> None:
-    """Fetch remote branches so relative refs and SHAs resolve in shallow clones."""
-    subprocess.run(
-        ["git", "fetch", "--no-tags", "--prune", "origin", "+refs/heads/*:refs/remotes/origin/*"],
-        cwd=workspace,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
 
 def main() -> None:
     try:
@@ -49,8 +42,8 @@ def main() -> None:
         sys.exit(1)
 
     # No default for before in code: action.yml default (HEAD~1) is passed by the runner when omitted
-    before = get_input("before").strip()
-    after = get_input("after", default="HEAD").strip()
+    before = get_input("before", required=True).strip()
+    after = get_input("after", required=True).strip()
     github_output = os.environ.get("GITHUB_OUTPUT")
     if not github_output:
         print("GITHUB_OUTPUT is not set", file=sys.stderr)
@@ -64,18 +57,8 @@ def main() -> None:
     # Normalize path: no trailing slash for consistent comparison
     path = path.rstrip("/")
 
-    # Invalid or missing "before" (e.g. first push): treat as changed to avoid skipping runs
-    if not before or before == INVALID_BEFORE:
-        _write_output(github_output, "true")
-        return
-
-    # Ensure relative refs (HEAD~1, HEAD, etc.) work in shallow clones: deepen if needed
-    try:
-        if _is_relative_ref(before) or _is_relative_ref(after):
-            _ensure_depth_for_ref(workspace, before, after)
-    except FileNotFoundError:
-        print("git not found", file=sys.stderr)
-        sys.exit(1)
+    _ensure_commit_exists(workspace, before)
+    _ensure_commit_exists(workspace, after)
 
     try:
         result = subprocess.run(

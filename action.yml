@@ -5,13 +5,11 @@ inputs:
     description: 'Path prefix to watch (e.g. mon-dossier). Files under this path trigger changed=true.'
     required: true
   before:
-    description: 'Git ref before (e.g. previous commit). Defaults to HEAD~1.'
-    required: false
-    default: ${{ github.event.before }}
+    description: 'Git ref before (e.g. previous commit).'
+    required: true
   after:
-    description: 'Git ref after (e.g. current commit). Defaults to HEAD.'
-    required: false
-    default: ${{ github.sha }}
+    description: 'Git ref after (e.g. current commit).'
+    required: true
 outputs:
   changed:
     description: '"true" if any file under the path changed between before and after, otherwise "false".'
