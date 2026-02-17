@@ -51,7 +51,7 @@ def test_missing_input_path_exits_with_error(github_output_file, capfd):
             main_module.main()
     assert exc_info.value.code == 1
     out, err = capfd.readouterr()
-    assert "INPUT_PATH is required" in err
+    assert "Missing required input: path (env INPUT_PATH)" in err
 
 
 def test_missing_github_output_exits_with_error(capfd):
