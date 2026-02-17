@@ -30,35 +30,15 @@ def _is_relative_ref(ref: str) -> bool:
     return not (len(ref) == 40 and all(c in "0123456789abcdef" for c in ref.lower()))
 
 
-def _depth_for_ref(ref: str) -> int:
-    """Minimum depth needed for ref to resolve (e.g. HEAD~3 needs 4)."""
-    ref = ref.strip().upper()
-    if not ref.startswith("HEAD"):
-        return 2
-    if ref == "HEAD":
-        return 1
-    if ref.startswith("HEAD~"):
-        try:
-            n = int(ref[5:].split("^")[0].split()[0])
-            return n + 1
-        except (ValueError, IndexError):
-            pass
-    return 2
-
-
 def _ensure_depth_for_ref(workspace: str, before: str, after: str) -> None:
-    """Fetch enough history so relative refs (HEAD~1, etc.) resolve in shallow clones."""
-    depth = max(_depth_for_ref(before), _depth_for_ref(after), 2)
-    r = subprocess.run(
-        ["git", "fetch", f"--depth={depth}", "origin", "HEAD"],
+    """Fetch remote branches so relative refs and SHAs resolve in shallow clones."""
+    subprocess.run(
+        ["git", "fetch", "--no-tags", "--prune", "origin", "+refs/heads/*:refs/remotes/origin/*"],
         cwd=workspace,
         capture_output=True,
         text=True,
         check=False,
     )
-    if r.returncode != 0:
-        # Best-effort: continue anyway, git diff will fail with a clear error
-        pass
 
 
 def main() -> None:
