@@ -99,7 +99,8 @@ def test_invalid_before_all_zeros_outputs_true(github_output_file):
     success = MagicMock(returncode=0, stdout="", stderr="")
     diff_with_change = MagicMock(returncode=0, stdout="mon-dossier/foo.txt\n", stderr="")
     with patch.dict(os.environ, env, clear=False):
-        with patch("main.subprocess.run", side_effect=[success, success, diff_with_change]):
+        # 1× git config safe.directory, 2× cat-file (before/after), 1× git diff
+        with patch("main.subprocess.run", side_effect=[success, success, success, diff_with_change]):
             main_module.main()
     assert read_output(github_output_file) == "true"
 
@@ -168,7 +169,8 @@ def test_git_diff_failure_exits_with_error(github_output_file, minimal_env, capf
     success = MagicMock(returncode=0, stdout="", stderr="")
     failure = MagicMock(returncode=1, stdout="", stderr="fatal: bad revision")
     with patch.dict(os.environ, minimal_env, clear=False):
-        with patch("main.subprocess.run", side_effect=[success, success, failure]):
+        # 1× git config safe.directory, 2× cat-file (before/after), 1× git diff (failure)
+        with patch("main.subprocess.run", side_effect=[success, success, success, failure]):
             with pytest.raises(SystemExit) as exc_info:
                 main_module.main()
     assert exc_info.value.code == 1
