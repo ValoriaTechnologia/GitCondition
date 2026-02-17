@@ -7,11 +7,11 @@ inputs:
   before:
     description: 'Git ref before (e.g. previous commit). Defaults to HEAD~1.'
     required: false
-    default: HEAD~1
+    default: ${{ github.event.before }}
   after:
     description: 'Git ref after (e.g. current commit). Defaults to HEAD.'
     required: false
-    default: HEAD
+    default: ${{ github.sha }}
 outputs:
   changed:
     description: '"true" if any file under the path changed between before and after, otherwise "false".'
