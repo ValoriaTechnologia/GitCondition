@@ -15,14 +15,6 @@ inputs:
 outputs:
   changed:
     description: '"true" if any file under the path changed between before and after, otherwise "false".'
-    value: ${{ steps.check.outputs.changed }}
 runs:
-  using: 'composite'
-  steps:
-    - id: check
-      run: python3 "${{ github.action_path }}/main.py"
-      shell: bash
-      env:
-        INPUT_PATH: ${{ inputs.path }}
-        INPUT_BEFORE: ${{ inputs.before }}
-        INPUT_AFTER: ${{ inputs.after }}
+  using: 'docker'
+  image: 'Dockerfile'
