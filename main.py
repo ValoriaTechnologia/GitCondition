@@ -29,17 +29,17 @@ def main() -> None:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
-    before = get_input("before", default="HEAD~1").strip()
+    before = get_input("before").strip()
     after = get_input("after", default="HEAD").strip()
     github_output = os.environ.get("GITHUB_OUTPUT")
     if not github_output:
         print("GITHUB_OUTPUT is not set", file=sys.stderr)
         sys.exit(1)
 
-    print(f"path: {path}")
-    print(f"before: {before}")
-    print(f"after: {after}")
-    print(f"github_output: {github_output}")
+    workspace = os.environ.get("GITHUB_WORKSPACE")
+    if not workspace or not os.path.isdir(workspace):
+        print("GITHUB_WORKSPACE is not set or not a directory", file=sys.stderr)
+        sys.exit(1)
 
     # Normalize path: no trailing slash for consistent comparison
     path = path.rstrip("/")
@@ -55,6 +55,7 @@ def main() -> None:
             capture_output=True,
             text=True,
             check=False,
+            cwd=workspace,
         )
     except FileNotFoundError:
         print("git not found", file=sys.stderr)
