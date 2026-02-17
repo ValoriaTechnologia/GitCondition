@@ -26,10 +26,10 @@ def main() -> None:
     try:
         path = get_input("path", required=True).strip()
     except ValueError as e:
-        print(e, file=sys.stderr)
+        print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
-    before = get_input("before").strip()
+    before = get_input("before", default="HEAD~1").strip()
     after = get_input("after", default="HEAD").strip()
     github_output = os.environ.get("GITHUB_OUTPUT")
     if not github_output:
@@ -56,7 +56,7 @@ def main() -> None:
         sys.exit(1)
 
     if result.returncode != 0:
-        print(result.stderr or "git diff failed", file=sys.stderr)
+        print(f"Error: {result.stderr or 'git diff failed'}", file=sys.stderr)
         sys.exit(1)
 
     changed = "false"
