@@ -21,11 +21,13 @@ def github_output_file(tmp_path):
 @pytest.fixture
 def minimal_env(github_output_file):
     """Minimal env for successful run (git diff mocked)."""
+    workspace = str(Path(github_output_file).parent)
     return {
         "INPUT_PATH": "mon-dossier",
         "INPUT_BEFORE": "abc123",
         "INPUT_AFTER": "def456",
         "GITHUB_OUTPUT": github_output_file,
+        "GITHUB_WORKSPACE": workspace,
     }
 
 
@@ -77,6 +79,7 @@ def test_invalid_before_empty_outputs_true(github_output_file):
         "INPUT_BEFORE": "",
         "INPUT_AFTER": "def456",
         "GITHUB_OUTPUT": github_output_file,
+        "GITHUB_WORKSPACE": str(Path(github_output_file).parent),
     }
     with patch.dict(os.environ, env, clear=False):
         with patch("main.subprocess.run") as mock_run:
@@ -92,6 +95,7 @@ def test_invalid_before_all_zeros_outputs_true(github_output_file):
         "INPUT_BEFORE": "0" * 40,
         "INPUT_AFTER": "def456",
         "GITHUB_OUTPUT": github_output_file,
+        "GITHUB_WORKSPACE": str(Path(github_output_file).parent),
     }
     with patch.dict(os.environ, env, clear=False):
         with patch("main.subprocess.run") as mock_run:
@@ -111,8 +115,10 @@ def test_after_defaults_to_head(github_output_file, minimal_env):
     with patch.dict(os.environ, minimal_env, clear=False):
         with patch("main.subprocess.run", return_value=mock_result) as mock_run:
             main_module.main()
-    mock_run.assert_called_once()
-    call_args = mock_run.call_args[0][0]
+    # May be called for git fetch (relative refs) then git diff
+    diff_calls = [c for c in mock_run.call_args_list if c[0][0][:2] == ["git", "diff"]]
+    assert len(diff_calls) >= 1
+    call_args = diff_calls[-1][0][0]
     assert call_args == ["git", "diff", "--name-only", "abc123", "HEAD"]
 
 

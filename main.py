@@ -22,6 +22,45 @@ def get_input(name: str, default: str | None = None, *, required: bool = False) 
 INVALID_BEFORE = "0" * 40
 
 
+def _is_relative_ref(ref: str) -> bool:
+    """True if ref is relative (HEAD~N, HEAD^, etc.), not a full SHA."""
+    if not ref or len(ref) > 40:
+        return bool(ref and ref.upper().startswith("HEAD"))
+    # 40-char hex is a full SHA
+    return not (len(ref) == 40 and all(c in "0123456789abcdef" for c in ref.lower()))
+
+
+def _depth_for_ref(ref: str) -> int:
+    """Minimum depth needed for ref to resolve (e.g. HEAD~3 needs 4)."""
+    ref = ref.strip().upper()
+    if not ref.startswith("HEAD"):
+        return 2
+    if ref == "HEAD":
+        return 1
+    if ref.startswith("HEAD~"):
+        try:
+            n = int(ref[5:].split("^")[0].split()[0])
+            return n + 1
+        except (ValueError, IndexError):
+            pass
+    return 2
+
+
+def _ensure_depth_for_ref(workspace: str, before: str, after: str) -> None:
+    """Fetch enough history so relative refs (HEAD~1, etc.) resolve in shallow clones."""
+    depth = max(_depth_for_ref(before), _depth_for_ref(after), 2)
+    r = subprocess.run(
+        ["git", "fetch", f"--depth={depth}", "origin", "HEAD"],
+        cwd=workspace,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if r.returncode != 0:
+        # Best-effort: continue anyway, git diff will fail with a clear error
+        pass
+
+
 def main() -> None:
     try:
         path = get_input("path", required=True).strip()
@@ -29,6 +68,7 @@ def main() -> None:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
+    # No default for before in code: action.yml default (HEAD~1) is passed by the runner when omitted
     before = get_input("before").strip()
     after = get_input("after", default="HEAD").strip()
     github_output = os.environ.get("GITHUB_OUTPUT")
@@ -48,6 +88,14 @@ def main() -> None:
     if not before or before == INVALID_BEFORE:
         _write_output(github_output, "true")
         return
+
+    # Ensure relative refs (HEAD~1, HEAD, etc.) work in shallow clones: deepen if needed
+    try:
+        if _is_relative_ref(before) or _is_relative_ref(after):
+            _ensure_depth_for_ref(workspace, before, after)
+    except FileNotFoundError:
+        print("git not found", file=sys.stderr)
+        sys.exit(1)
 
     try:
         result = subprocess.run(

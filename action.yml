@@ -5,11 +5,11 @@ inputs:
     description: 'Path prefix to watch (e.g. mon-dossier). Files under this path trigger changed=true.'
     required: true
   before:
-    description: 'Git ref before (e.g. previous commit). Defaults to github.event.before on push.'
+    description: 'Git ref before (e.g. previous commit). Defaults to HEAD~1.'
     required: false
     default: HEAD~1
   after:
-    description: 'Git ref after (e.g. current commit). Defaults to github.sha.'
+    description: 'Git ref after (e.g. current commit). Defaults to HEAD.'
     required: false
     default: HEAD
 outputs:
