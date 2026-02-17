@@ -16,19 +16,20 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Runs the action via Docker: GitHub builds the Dockerfile and runs the container (no bypass).
       - name: Check path changes
-        id: check-path
+        id: check_path
         uses: .
         with:
           path: main.py
 
       - name: Detected change under path
-        if: steps.check-path.outputs.changed == 'true'
+        if: steps.check_path.outputs.changed == 'true'
         run: echo "Action reported changed=true for the given path."
 
       - name: No change under path
-        if: steps.check-path.outputs.changed == 'false'
+        if: steps.check_path.outputs.changed == 'false'
         run: echo "Action reported changed=false for the given path."
 
       - name: Show output
-        run: echo "changed=${{ steps.check-path.outputs.changed }}"
+        run: echo "changed=${{ steps.check_path.outputs.changed }}"
