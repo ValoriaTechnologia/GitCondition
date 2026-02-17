@@ -72,8 +72,8 @@ def test_missing_github_output_exits_with_error(capfd):
     assert "GITHUB_OUTPUT is not set" in err
 
 
-def test_invalid_before_empty_outputs_true(github_output_file):
-    """INPUT_BEFORE empty -> no git call, output changed=true."""
+def test_invalid_before_empty_exits_with_error(github_output_file):
+    """INPUT_BEFORE empty -> ValueError (before is required, no try/except in main for it)."""
     env = {
         "INPUT_PATH": "mon-dossier",
         "INPUT_BEFORE": "",
@@ -82,14 +82,13 @@ def test_invalid_before_empty_outputs_true(github_output_file):
         "GITHUB_WORKSPACE": str(Path(github_output_file).parent),
     }
     with patch.dict(os.environ, env, clear=False):
-        with patch("main.subprocess.run") as mock_run:
+        with pytest.raises(ValueError) as exc_info:
             main_module.main()
-    mock_run.assert_not_called()
-    assert read_output(github_output_file) == "true"
+    assert "before" in str(exc_info.value).lower() and "INPUT_BEFORE" in str(exc_info.value)
 
 
 def test_invalid_before_all_zeros_outputs_true(github_output_file):
-    """INPUT_BEFORE is 0*40 -> no git call, output changed=true."""
+    """INPUT_BEFORE is 0*40 -> cat-file + git diff run; mock so git diff returns file under path -> changed=true."""
     env = {
         "INPUT_PATH": "mon-dossier",
         "INPUT_BEFORE": "0" * 40,
@@ -97,29 +96,22 @@ def test_invalid_before_all_zeros_outputs_true(github_output_file):
         "GITHUB_OUTPUT": github_output_file,
         "GITHUB_WORKSPACE": str(Path(github_output_file).parent),
     }
+    success = MagicMock(returncode=0, stdout="", stderr="")
+    diff_with_change = MagicMock(returncode=0, stdout="mon-dossier/foo.txt\n", stderr="")
     with patch.dict(os.environ, env, clear=False):
-        with patch("main.subprocess.run") as mock_run:
+        with patch("main.subprocess.run", side_effect=[success, success, diff_with_change]):
             main_module.main()
-    mock_run.assert_not_called()
     assert read_output(github_output_file) == "true"
 
 
-def test_after_defaults_to_head(github_output_file, minimal_env):
-    """INPUT_AFTER empty -> git diff called with HEAD."""
+def test_after_empty_exits_with_error(github_output_file, minimal_env):
+    """INPUT_AFTER empty -> ValueError (after is required, no try/except in main for it)."""
     minimal_env["INPUT_AFTER"] = ""
     minimal_env["INPUT_BEFORE"] = "abc123"
-    mock_result = MagicMock()
-    mock_result.returncode = 0
-    mock_result.stdout = ""
-    mock_result.stderr = ""
     with patch.dict(os.environ, minimal_env, clear=False):
-        with patch("main.subprocess.run", return_value=mock_result) as mock_run:
+        with pytest.raises(ValueError) as exc_info:
             main_module.main()
-    # May be called for git fetch (relative refs) then git diff
-    diff_calls = [c for c in mock_run.call_args_list if c[0][0][:2] == ["git", "diff"]]
-    assert len(diff_calls) >= 1
-    call_args = diff_calls[-1][0][0]
-    assert call_args == ["git", "diff", "--name-only", "abc123", "HEAD"]
+    assert "after" in str(exc_info.value).lower() and "INPUT_AFTER" in str(exc_info.value)
 
 
 def test_file_under_path_outputs_true(github_output_file, minimal_env):
@@ -172,13 +164,11 @@ def test_path_normalization_trailing_slash(github_output_file, minimal_env):
 
 
 def test_git_diff_failure_exits_with_error(github_output_file, minimal_env, capfd):
-    """subprocess.run returncode != 0 -> exit 1, no changed= in output."""
-    mock_result = MagicMock()
-    mock_result.returncode = 1
-    mock_result.stdout = ""
-    mock_result.stderr = "fatal: bad revision"
+    """git diff returncode != 0 -> exit 1, no changed= in output (cat-file must succeed first)."""
+    success = MagicMock(returncode=0, stdout="", stderr="")
+    failure = MagicMock(returncode=1, stdout="", stderr="fatal: bad revision")
     with patch.dict(os.environ, minimal_env, clear=False):
-        with patch("main.subprocess.run", return_value=mock_result):
+        with patch("main.subprocess.run", side_effect=[success, success, failure]):
             with pytest.raises(SystemExit) as exc_info:
                 main_module.main()
     assert exc_info.value.code == 1
@@ -187,12 +177,9 @@ def test_git_diff_failure_exits_with_error(github_output_file, minimal_env, capf
     assert "fatal" in err or "bad revision" in err or "git diff failed" in err
 
 
-def test_git_not_found_exits_with_error(github_output_file, minimal_env, capfd):
-    """subprocess.run raises FileNotFoundError -> exit 1, stderr message."""
+def test_git_not_found_exits_with_error(github_output_file, minimal_env):
+    """subprocess.run raises FileNotFoundError in _ensure_commit_exists -> exception propagates."""
     with patch.dict(os.environ, minimal_env, clear=False):
         with patch("main.subprocess.run", side_effect=FileNotFoundError):
-            with pytest.raises(SystemExit) as exc_info:
+            with pytest.raises(FileNotFoundError):
                 main_module.main()
-    assert exc_info.value.code == 1
-    out, err = capfd.readouterr()
-    assert "git not found" in err
