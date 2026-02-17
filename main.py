@@ -56,7 +56,7 @@ def main() -> None:
         sys.exit(1)
 
     if result.returncode != 0:
-        print(f"Error: {result.stderr or 'git diff failed'}", file=sys.stderr)
+        print(f"Error(git diff): {result.stderr or 'git diff failed'}", file=sys.stderr)
         sys.exit(1)
 
     changed = "false"
