@@ -8,18 +8,29 @@ import subprocess
 import sys
 
 
+def get_input(name: str, default: str | None = None, *, required: bool = False) -> str:
+    key = f"INPUT_{name.upper()}"
+    val = os.environ.get(key)
+    if val is None or val == "":
+        if required and default is None:
+            raise ValueError(f"Missing required input: {name} (env {key})")
+        return default or ""
+    return val
+
+
 # All-zero object hash means no previous ref (e.g. first push, force-push)
 INVALID_BEFORE = "0" * 40
 
 
 def main() -> None:
-    path = os.environ.get("INPUT_PATH", "").strip()
-    if not path:
-        print("INPUT_PATH is required", file=sys.stderr)
+    try:
+        path = get_input("path", required=True).strip()
+    except ValueError as e:
+        print(e, file=sys.stderr)
         sys.exit(1)
 
-    before = (os.environ.get("INPUT_BEFORE") or "").strip()
-    after = (os.environ.get("INPUT_AFTER") or "").strip()
+    before = get_input("before").strip()
+    after = get_input("after", default="HEAD").strip()
     github_output = os.environ.get("GITHUB_OUTPUT")
     if not github_output:
         print("GITHUB_OUTPUT is not set", file=sys.stderr)
@@ -32,9 +43,6 @@ def main() -> None:
     if not before or before == INVALID_BEFORE:
         _write_output(github_output, "true")
         return
-
-    if not after:
-        after = "HEAD"
 
     try:
         result = subprocess.run(
