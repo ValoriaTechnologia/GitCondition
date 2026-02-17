@@ -1,4 +1,7 @@
-FROM python:3-slim
-RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
+FROM python:3.12-slim
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
 COPY main.py /main.py
-ENTRYPOINT ["python3", "/main.py"]
+ENTRYPOINT ["python", "/main.py"]
