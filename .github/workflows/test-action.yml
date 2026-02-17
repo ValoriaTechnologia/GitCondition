@@ -22,6 +22,8 @@ jobs:
         uses: ./
         with:
           path: main.py
+          before: ${{ github.event.before }}
+          after: ${{ github.sha }}
 
       - name: Detected change under path
         if: steps.check_path.outputs.changed == 'true'
