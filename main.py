@@ -54,6 +54,14 @@ def main() -> None:
         print("GITHUB_WORKSPACE is not set or not a directory", file=sys.stderr)
         sys.exit(1)
 
+    # In Docker/CI the repo may be owned by another user; allow this directory (Git 2.35.2+).
+    subprocess.run(
+        ["git", "config", "--global", "--add", "safe.directory", workspace],
+        cwd=workspace,
+        check=False,
+        capture_output=True,
+    )
+
     # Normalize path: no trailing slash for consistent comparison
     path = path.rstrip("/")
 
