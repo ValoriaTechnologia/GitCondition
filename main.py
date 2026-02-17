@@ -36,6 +36,11 @@ def main() -> None:
         print("GITHUB_OUTPUT is not set", file=sys.stderr)
         sys.exit(1)
 
+    print(f"path: {path}")
+    print(f"before: {before}")
+    print(f"after: {after}")
+    print(f"github_output: {github_output}")
+
     # Normalize path: no trailing slash for consistent comparison
     path = path.rstrip("/")
 
